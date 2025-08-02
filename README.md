@@ -116,4 +116,4 @@ MIT License © 2025 — Built for educational, research, and experimentation pur
 
 👨‍💻 Author
 Abdullah Al Arif
-email:aieng.abdullah.arif@gmail.com
+[email:aieng.abdullah.arif@gmail.com]
