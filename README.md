@@ -1,5 +1,5 @@
 <h1 align="center">
-  🧠 Reformer Transformer — From Scratch
+   Reformer Transformer — From Scratch
 </h1>
 
 <p align="center">
