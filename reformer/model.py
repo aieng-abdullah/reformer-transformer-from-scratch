@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 
 from reformer.block import ReformerBlock
+from reformer.pos_encoding import AxialPositionalEncoding
 
 
 class ReformerModel(nn.Module):
@@ -10,7 +11,7 @@ class ReformerModel(nn.Module):
     ):
         super().__init__()
         self.token_emb = nn.Embedding(vocab_size, dim)
-        self.pos_emb = nn.Parameter(torch.randn(1, max_seq_len, dim))
+        self.pos_emb = AxialPositionalEncoding(dim, max_seq_len)
         self.layers = nn.ModuleList(
             [
                 ReformerBlock(dim, n_heads, bucket_size, ffn_chunks)
@@ -21,7 +22,8 @@ class ReformerModel(nn.Module):
 
     def forward(self, x):
         b, t = x.shape
-        x = self.token_emb(x) + self.pos_emb[:, :t]
+        x = self.token_emb(x)
+        x = self.pos_emb(x)
 
         if x.shape[-1] % 2 != 0:
             raise ValueError("Embedding dim must be even for reversible residuals.")

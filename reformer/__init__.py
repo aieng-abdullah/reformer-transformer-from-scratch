@@ -3,6 +3,7 @@ from reformer.attention import LSHSelfAttention
 from reformer.feedforward import ChunkedFeedForward
 from reformer.reversible import ReversibleBlock
 from reformer.block import ReformerBlock
+from reformer.pos_encoding import AxialPositionalEncoding
 from reformer.generation import generate_text
 from reformer.training import train_reformer, evaluate_reformer
 from reformer.utils import save_checkpoint, load_checkpoint
@@ -14,6 +15,7 @@ __all__ = [
     "ChunkedFeedForward",
     "ReversibleBlock",
     "ReformerBlock",
+    "AxialPositionalEncoding",
     "generate_text",
     "train_reformer",
     "evaluate_reformer",
