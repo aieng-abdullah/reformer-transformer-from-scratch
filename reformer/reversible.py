@@ -1,4 +1,6 @@
+import torch
 import torch.nn as nn
+from torch.utils.checkpoint import checkpoint
 
 
 class ReversibleBlock(nn.Module):
@@ -8,6 +10,6 @@ class ReversibleBlock(nn.Module):
         self.g = g_module
 
     def forward(self, x1, x2):
-        y1 = x1 + self.f(x2)
-        y2 = x2 + self.g(y1)
+        y1 = x1 + checkpoint(self.f, x2, use_reentrant=False)
+        y2 = x2 + checkpoint(self.g, y1, use_reentrant=False)
         return y1, y2
