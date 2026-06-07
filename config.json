@@ -1,0 +1,25 @@
+{
+  "model": {
+    "vocab_size": 100,
+    "dim": 64,
+    "n_layers": 2,
+    "n_heads": 4,
+    "bucket_size": 16,
+    "ffn_chunks": 8,
+    "max_seq_len": 64
+  },
+  "training": {
+    "batch_size": 16,
+    "learning_rate": 0.001,
+    "epochs": 2,
+    "dataset_size": 500,
+    "use_amp": true
+  },
+  "sweep": {
+    "dim": [64, 128],
+    "n_layers": [2, 4],
+    "bucket_size": [16, 32],
+    "learning_rate": [0.001, 0.0005]
+  },
+  "device": "cuda"
+}
