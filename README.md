@@ -3,7 +3,7 @@
 </h1>
 
 <p align="center">
-  <img src="https://miro.medium.com/v2/resize:fit-1200/1*Yz45yt-uqMPYxDGbZGavTw.png" width="60%">
+  <img src="https://miro.medium.com/v2/resize:fit:1200/1*Yz45yt-uqMPYxDGbZGavTw.png" width="60%">
 </p>
 
 <p align="center">
@@ -14,65 +14,96 @@
 
 ## What is Reformer?
 
-Reformer is a transformer architecture designed for **scaling attention to ultra-long sequences** (e.g., 64K tokens), introduced by [Kitaev et al., 2020](https://arxiv.org/abs/2001.04451).  
-It addresses the quadratic memory and computational bottleneck of standard attention using several key ideas:
+Reformer is a transformer architecture designed for **scaling attention to ultra-long sequences** (e.g., 64K tokens), introduced by [Kitaev et al., 2020](https://arxiv.org/abs/2001.04451).
 
-| Component                        | Purpose                                                                 |
-|----------------------------------|------------------------------------------------------------------------|
-| **LSH Attention**                | Reduces complexity from $O(n^2)$ → $O(n \log n)$ via Locality-Sensitive Hashing |
-| **Reversible Layers**            | Saves GPU memory by recomputing intermediate activations instead of storing them |
-| **Chunked Feed-Forward**         | Applies feed-forward layers on sequence chunks to reduce peak memory usage |
-| **Axial Positional Encoding**    | Enables long sequence encoding efficiently without large positional matrices |
-
----
-
-## Paper Reference
-
-**Title:** Reformer: The Efficient Transformer  
-**Authors:** Nikita Kitaev, Łukasz Kaiser, Anselm Levskaya  
-**Published in:** ICLR 2020  
-**Paper Link:** [arXiv:2001.04451](https://arxiv.org/abs/2001.04451)
+| Component | Purpose |
+|---|---|
+| **LSH Attention** | Reduces attention from O(n²) → O(n log n) via Locality-Sensitive Hashing |
+| **Reversible Layers** | Recomputes activations during backward instead of storing them |
+| **Chunked Feed-Forward** | Applies FFN on sequence chunks to reduce peak memory |
+| **Axial Positional Encoding** | Decomposes PE into row + column for long sequences |
 
 ---
 
-## Project Goals
+## Project Structure
 
-This project aims to:
-
-- Provide a **line-by-line understanding** of Reformer internals  
-- Offer a **modular, clean PyTorch implementation**  
-- Serve as a base for **research experiments** and **AI portfolio projects**  
-- Support **ML engineers, students, and researchers** in learning memory-efficient Transformers  
+```
+reformer-transformer-from-scratch/
+├── reformer/                    # Core package
+│   ├── attention.py             # LSH self-attention
+│   ├── feedforward.py           # Chunked feed-forward network
+│   ├── reversible.py            # Reversible block (gradient checkpointing)
+│   ├── pos_encoding.py          # Axial positional encoding
+│   ├── block.py                 # ReformerBlock (attention + FFN)
+│   ├── model.py                 # ReformerModel (full model)
+│   ├── dataset.py               # CopyDataset for demo training
+│   ├── training.py              # Train/evaluate loops
+│   ├── generation.py            # Autoregressive text generation
+│   └── utils.py                 # Checkpoint save/load
+├── scripts/
+│   └── train.py                 # CLI entrypoint
+├── tests/                       # Test suite (24 tests)
+├── notebooks/
+│   └── reformer_research_implementation.ipynb
+├── config.json                  # Hyperparameters + sweep config
+├── pyproject.toml               # Package metadata + deps
+└── README.md
+```
 
 ---
 
-## Key Features
+## Setup
 
-- Locality-Sensitive Hashing Attention  
-- Reversible Residual Layers  
-- Chunked Feed-Forward Networks  
-- Axial Positional Encoding  
-- Full PyTorch implementation from scratch  
-- Clear documentation, visualizations, and metrics tracking  
-- GPU-ready and Colab-compatible
+**Requirements:** Python 3.10+, CUDA GPU recommended (tested on GTX 1050 Ti 4GB)
+
+```bash
+# Install dependencies
+pip install -e .
+
+# Run tests
+python -m pytest tests/ -v
+```
+
+---
+
+## Training
+
+```bash
+# Single training run (uses config.json defaults)
+python scripts/train.py --mode single
+
+# Hyperparameter sweep (4 configs)
+python scripts/train.py --mode sweep
+
+# Override device / seed
+python scripts/train.py --mode single --device cpu --seed 42
+```
+
+### Config (`config.json`)
+
+```json
+{
+  "model": { "dim": 64, "n_layers": 2, "n_heads": 4, "bucket_size": 16 },
+  "training": { "batch_size": 16, "epochs": 2, "use_amp": true },
+  "sweep": { "dim": [64, 128], "n_layers": [2, 4] }
+}
+```
+
+AMP (mixed precision) is enabled by default for CUDA GPUs.
 
 ---
 
 ## Technical Highlights
 
 ### 1. LSH Self-Attention
-Queries are hashed into buckets so that only vectors in the same bucket attend to each other.  
-Reduces attention complexity from $\mathcal{O}(n^2)$ to $\mathcal{O}(n \log n)$.  
-
-Within a bucket $B_k$, attention is computed as:
+Queries are hashed into buckets so only vectors in the same bucket attend to each other.
 
 $$
 \text{Attention}(Q_{B_k}, K_{B_k}, V_{B_k}) = \text{softmax}\left(\frac{Q_{B_k} K_{B_k}^T}{\sqrt{d}}\right) V_{B_k}
 $$
 
 ### 2. Reversible Residual Layers
-Standard residual connections store activations for backprop, consuming memory.  
-Reversible layers recompute $x_{l}$ from $x_{l+1}$:
+Recompute activations during backward instead of storing them:
 
 $$
 \begin{cases}
@@ -85,61 +116,50 @@ x_1 = y_1 - f(x_2)
 \end{cases}
 $$
 
-### 3. Chunked Feed-Forward
-Instead of applying feed-forward layers to the entire sequence:
-
-$$
-\text{FFN}(X) = W_2 \cdot \text{GELU}(W_1 \cdot X + b_1) + b_2
-$$
-
-The input $X$ is divided into chunks to limit peak memory usage.
-
-### 4. Axial Positional Encoding
-Decomposes positional embeddings along axes (row and column) for long sequences:
+### 3. Axial Positional Encoding
+Decomposes positional embeddings along row and column axes:
 
 $$
 PE_{(i,j)} = PE_\text{row}(i) + PE_\text{col}(j)
 $$
 
-Allows very long sequences to be encoded efficiently.
+---
+
+## Tests
+
+```bash
+python -m pytest tests/ -v
+```
+
+24 tests covering:
+- LSH attention (standard + LSH paths, backward, weight storage)
+- Reversible block (forward, backward, gradient correctness, memory savings)
+- Full model (forward shape, all-params-backward, sequence lengths, odd-dim error)
+- Axial PE (shape, length variants, position uniqueness, gradient flow)
+- Text generation (shape, length, input preservation, no-grad)
 
 ---
 
-## Who Should Use This?
+## Paper Reference
 
-- AI/ML engineers building scalable transformer models  
-- Students seeking a deep understanding of Reformer internals  
-- Researchers experimenting with long-sequence modeling  
-- AI practitioners wanting full control of attention mechanics  
-
----
-
-## Tools & Frameworks
-
-- Python 3.10+  
-- PyTorch 2.x  
-- Matplotlib / Seaborn (for visualizations)  
-- Google Colab (GPU-supported)
+**Title:** Reformer: The Efficient Transformer
+**Authors:** Nikita Kitaev, Lukasz Kaiser, Anselm Levskaya
+**Published in:** ICLR 2020
+**Paper:** [arXiv:2001.04451](https://arxiv.org/abs/2001.04451)
 
 ---
 
 ## Learn More
 
-- [Reformer Explained (Illustrated Transformer)](https://theaisummer.com/reformer/)  
-- [LSH Attention Visualized (Jay Alammar)](https://jalammar.github.io/illustrated-transformer/)  
+- [Reformer Explained (The AI Summer)](https://theaisummer.com/reformer/)
+- [LSH Attention Visualized (Jay Alammar)](https://jalammar.github.io/illustrated-transformer/)
 - [Original Reformer GitHub (Google)](https://github.com/google/trax)
 
 ---
 
 ## License
 
-MIT License © 2025 — Built for educational, research, and experimentation purposes.
+MIT License
 
----
-
-<p align="center">
-  Built by an AI Engineer committed to code that teaches.
-</p>
-
-Author: Abdullah Al Arif  
+Author: Abdullah Al Arif
 Email: aieng.abdullah.arif@gmail.com
