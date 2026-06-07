@@ -10,6 +10,12 @@
   <b>A PyTorch Reimplementation of the Reformer Architecture — With LSH Attention, Reversible Layers, and Chunked Feed-Forward Networks</b>
 </p>
 
+<p align="center">
+  <a href="https://colab.research.google.com/github/aieng-abdullah/reformer-transformer-from-scratch/blob/main/notebooks/reformer_research_implementation.ipynb">
+    <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab">
+  </a>
+</p>
+
 ---
 
 ## What is Reformer?
