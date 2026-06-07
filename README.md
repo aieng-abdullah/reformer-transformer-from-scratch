@@ -52,6 +52,64 @@ reformer-transformer-from-scratch/
 
 ---
 
+## Architecture
+
+```
+Input tokens (B, L)
+       │
+       ▼
+┌──────────────────┐
+│  Token Embedding  │  nn.Embedding(vocab_size, dim)
+└──────────────────┘
+       │
+       ▼
+┌──────────────────┐
+│ Axial Positional  │  PE_row(i) + PE_col(j) on 2D grid
+│    Encoding       │
+└──────────────────┘
+       │
+       ▼
+┌──────────────────────────────────────────┐
+│            ReformerBlock  ×N             │
+│                                          │
+│  Input split into (x1, x2) along dim    │
+│  ┌──────────────────────────────────┐    │
+│  │  y1 = x1 + LSHAttention(x2)     │    │  ← f branch
+│  │  y2 = x2 + ChunkedFFN(y1)       │    │  ← g branch
+│  └──────────────────────────────────┘    │
+│  Concatenate (y1, y2) → output          │
+│                                          │
+│  Reversible: uses gradient checkpointing │
+│  to avoid storing intermediate (y1, y2)  │
+└──────────────────────────────────────────┘
+       │
+       ▼
+┌──────────────────┐
+│  Linear (dim → V) │
+└──────────────────┘
+       │
+       ▼
+  Logits (B, L, vocab_size)
+```
+
+### Data flow through a single ReformerBlock
+
+1. **Split** input `x` into two halves: `x1, x2 = x.chunk(2, dim=-1)`
+2. **f branch:** `y1 = x1 + LSHSelfAttention(x2)` — attention operates on half-dim
+3. **g branch:** `y2 = x2 + ChunkedFeedForward(y1)` — FFN operates on half-dim
+4. **Concatenate** `y1, y2` back to full dim
+
+### Memory savings
+
+| Technique | What it saves |
+|---|---|
+| **LSH bucketing** | Only computes attention within hash buckets, not full sequence |
+| **Reversible layers** | Recomputes `(y1, y2)` from `(x1, x2)` during backward — no activation storage between layers |
+| **Chunked FFN** | Processes sequence in chunks — no need to fit full sequence in FFN at once |
+| **Axial PE** | Stores `R + C` embeddings instead of `R × C` for a 2D grid |
+
+---
+
 ## Setup
 
 **Requirements:** Python 3.10+, CUDA GPU recommended (tested on GTX 1050 Ti 4GB)
